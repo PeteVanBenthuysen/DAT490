@@ -122,9 +122,6 @@ def build_final_dataset() -> str:
         # Rent burden
         "pct_rent_burden_30": "mean",  # Average % rent burdened (30%+)
         "pct_rent_burden_50": "mean",  # Average % severely rent burdened (50%+)
-        # Legacy variables (kept for backward compatibility)
-        "long45_share": "mean",  # Deprecated: use pct_commute_45_59 + pct_commute_60_plus
-        "long60_share": "mean"  # Deprecated: use pct_commute_60_plus
     })
     print(f"Aggregated commute data to {len(zcta_aggregated)} ZCTAs")
     

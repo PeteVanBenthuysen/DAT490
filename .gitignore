@@ -42,9 +42,11 @@ ENV/
 .env.local
 
 # Data
+data/final/*
 data/raw/*
 data/processed/*
 data/models/*
+data/test/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/models/.gitkeep
@@ -76,3 +78,4 @@ cache/
 # Misc
 *.bak
 *.tmp
+

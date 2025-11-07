@@ -7,14 +7,17 @@
 Analyzing how commute distance and transit access influence housing affordability using data engineering and machine learning.
 
 ### Problem Statement
+
 Quantify the relationship between housing costs, commute time, and public transit accessibility to identify affordability zones and inform policy decisions.
 
 ### Data Sources
+
 - **Zillow**: Rental price data
 - **Census ACS**: Commute patterns and demographics  
 - **OpenStreetMap**: Transit network data
 
 ### Methodology
+
 - **Data Pipeline**: Automated ETL with orchestration
 - **Regression Analysis**: Multiple regression for affordability prediction
 - **Clustering**: K-Means for affordability zone identification
@@ -22,7 +25,7 @@ Quantify the relationship between housing costs, commute time, and public transi
 
 ## Project Structure
 
-```
+```text
 DAT490/
 ├── run_pipeline.py           # Main pipeline entry point
 ├── requirements.txt          # Python dependencies
@@ -114,6 +117,7 @@ Output files are saved to `data/final/`:
 - `final_zcta_dataset_dallas.csv`
 
 Each dataset includes:
+
 - Rent-to-income ratios
 - Commute time distributions
 - Transit stop density

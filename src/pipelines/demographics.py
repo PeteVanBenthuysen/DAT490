@@ -15,7 +15,7 @@ from .utils import http_json_to_dict
 def fetch_demographics_for_county(
     state_fips: str, 
     county_fips: str,
-    year: int = 2021
+    year: int = 2023
 ) -> pd.DataFrame:
     """Fetch demographic data (race, ethnicity, income) from ACS for a single county.
     
