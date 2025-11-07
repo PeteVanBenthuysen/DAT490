@@ -163,7 +163,6 @@ Ensure you're running from the project root directory and have activated your vi
 
 ```bash
 pip install -r requirements.txt
-
 ```
 
 **Cache Folders:**

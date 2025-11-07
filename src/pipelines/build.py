@@ -12,10 +12,9 @@ import pandas as pd
 from .acs import compute_acs_features, fetch_acs_for_county
 from .config import (
     CBSA_CODE,
-    COUNTY_FIPS_LIST,
+    COUNTIES,
     FINAL_ZCTA_OUT,
     METRO_NAME,
-    STATE_FIPS,
     ZIP_PREFIXES,
     ZORI_ZIP_CSV_URL,
 )
@@ -27,7 +26,7 @@ from .demographics import (
 )
 from .osm import zcta_transit_density
 from .spatial import filter_zctas_in_cbsa, tract_to_zcta_centroid_map
-from .tiger import get_cbsa_polygon, get_state_tracts, get_state_zctas
+from .tiger import get_cbsa_polygon, get_tracts_for_counties, get_state_zctas
 from .zori import fetch_zori_latest
 
 
@@ -69,23 +68,30 @@ def build_final_dataset() -> str:
 
     # Step 2: Fetch ZCTA and tract geometries for the region
     zctas_all = get_state_zctas(ZIP_PREFIXES)
-    tracts_all = get_state_tracts(STATE_FIPS, COUNTY_FIPS_LIST)
+    print(f"Fetching census tracts for {len(COUNTIES)} counties across {len(set(s for s, _ in COUNTIES))} state(s)...")
+    tracts_all = get_tracts_for_counties(COUNTIES)
     print(f"Fetched {len(zctas_all)} ZCTAs and {len(tracts_all)} tracts")
 
     # Filter ZCTAs to only those within the CBSA (centroid-based)
     zctas_in_metro = filter_zctas_in_cbsa(zctas_all, cbsa_boundary)
     tracts_in_counties = tracts_all
 
-    # Step 3: Fetch ACS commute data for each county
-    print(f"Fetching ACS commute data for {len(COUNTY_FIPS_LIST)} counties...")
-    acs_data_by_county = [fetch_acs_for_county(STATE_FIPS, county_fips) for county_fips in COUNTY_FIPS_LIST]
+    # Step 3: Fetch ACS commute data for each county (grouped by state)
+    print(f"Fetching ACS commute data for {len(COUNTIES)} counties...")
+    acs_data_by_county = []
+    for state_fips, county_fips in COUNTIES:
+        acs_data = fetch_acs_for_county(state_fips, county_fips)
+        acs_data_by_county.append(acs_data)
     acs_raw = pd.concat(acs_data_by_county, ignore_index=True)
     acs_features = compute_acs_features(acs_raw)
     print(f"Processed ACS commute data for {len(acs_raw)} tracts")
     
     # Step 3b: Fetch ACS demographic data (race, ethnicity, income) for each county
-    print(f"Fetching ACS demographic data for {len(COUNTY_FIPS_LIST)} counties...")
-    demo_data_by_county = [fetch_demographics_for_county(STATE_FIPS, county_fips) for county_fips in COUNTY_FIPS_LIST]
+    print(f"Fetching ACS demographic data for {len(COUNTIES)} counties...")
+    demo_data_by_county = []
+    for state_fips, county_fips in COUNTIES:
+        demo_data = fetch_demographics_for_county(state_fips, county_fips)
+        demo_data_by_county.append(demo_data)
     demo_raw = pd.concat(demo_data_by_county, ignore_index=True)
     demo_with_pct = compute_demographic_percentages(demo_raw)
     print(f"Processed demographic data for {len(demo_raw)} tracts")

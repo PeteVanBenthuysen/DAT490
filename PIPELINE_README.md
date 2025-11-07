@@ -28,6 +28,7 @@ The DAT490 data pipeline is an automated ETL (Extract, Transform, Load) system t
 ### Key Features
 
 - **Multi-metro support**: Phoenix, Memphis, Los Angeles, Dallas
+- **Multi-state metro support**: Handles metropolitan areas spanning multiple states (e.g., Memphis covers TN, MS, and AR)
 - **Automated spatial joins**: Tract-to-ZCTA mapping via centroids
 - **Population-weighted aggregation**: Accurate demographic rollups
 - **API caching**: OSMnx caches OpenStreetMap queries for performance
@@ -279,8 +280,7 @@ CENSUS_API_KEY: str         # Census API key from environment
 METRO_CONFIGS: dict         # Metro area definitions
 SELECTED_METRO: str         # Current metro (from METRO env var)
 CBSA_CODE: str             # CBSA code for selected metro
-STATE_FIPS: str            # Primary state FIPS code
-COUNTY_FIPS_LIST: list     # County FIPS codes in metro
+COUNTIES: list             # List of (state_fips, county_fips) tuples
 ZIP_PREFIXES: list         # ZIP code prefixes for ZCTA queries
 UTM_ZONE: int              # UTM EPSG code for area calculations
 
@@ -290,17 +290,33 @@ FINAL_ZCTA_OUT: Path       # Output CSV path
 
 **Metro Configurations**:
 
+The pipeline supports multi-state metropolitan areas. Each metro is defined with a list of counties as `(state_fips, county_fips)` tuples to support metros spanning multiple states (e.g., Memphis spans TN, MS, and AR).
+
 ```python
 METRO_CONFIGS = {
     "phoenix": {
         "name": "Phoenix-Mesa-Chandler, AZ",
         "cbsa_code": "38060",
-        "state_fips": "04",
-        "county_fips_list": ["013", "021"],  # Maricopa, Pinal
+        "counties": [
+            ("04", "013"),  # Maricopa County, AZ
+            ("04", "021")   # Pinal County, AZ
+        ],
         "zip_prefixes": ["85"],
         "utm_zone": 32612  # UTM Zone 12N
     },
-    # ... memphis, los_angeles, dallas
+    "memphis": {
+        "name": "Memphis, TN-MS-AR",
+        "cbsa_code": "32820",
+        "counties": [
+            ("47", "157"),  # Shelby County, TN
+            ("47", "047"),  # Fayette County, TN
+            ("05", "035"),  # Crittenden County, AR
+            ("28", "033")   # DeSoto County, MS
+        ],
+        "zip_prefixes": ["37", "38"],
+        "utm_zone": 32616  # UTM Zone 16N
+    },
+    # ... los_angeles, dallas
 }
 ```
 
@@ -315,10 +331,10 @@ METRO_CONFIGS = {
 **Steps**:
 
 1. Fetch CBSA boundary
-2. Fetch ZCTAs and tracts
+2. Fetch ZCTAs and tracts (supports multi-state queries)
 3. Filter ZCTAs to metro area
-4. Fetch ACS commute data for all counties
-5. Fetch ACS demographic data for all counties
+4. Fetch ACS commute data for all counties (iterates over state-county pairs)
+5. Fetch ACS demographic data for all counties (iterates over state-county pairs)
 6. Map tracts to ZCTAs (spatial join)
 7. Aggregate commute data to ZCTA level
 8. Aggregate demographics to ZCTA level
@@ -327,6 +343,8 @@ METRO_CONFIGS = {
 11. Merge all data sources
 12. Create income segments
 13. Write output CSV
+
+**Multi-State Support**: The pipeline automatically handles metros spanning multiple states by iterating over the `COUNTIES` list of `(state_fips, county_fips)` tuples. Each state-county combination is queried separately from the Census API and then concatenated.
 
 **Error Handling**: Raises exceptions for API failures, validates data at each step
 
@@ -354,11 +372,19 @@ Fetches ZIP Code Tabulation Areas by prefix
 
 #### `get_state_tracts(state_fips: str, county_fips_list: list[str]) -> gpd.GeoDataFrame`
 
-Fetches census tracts for specified counties
+Fetches census tracts for specified counties in a single state
 
 - **Args**: State FIPS code, list of county FIPS codes
 - **Returns**: GeoDataFrame with tract polygons
-- **Note**: Handles multi-county metros
+- **Note**: For single-state metros; see `get_tracts_for_counties()` for multi-state support
+
+#### `get_tracts_for_counties(counties: list[tuple[str, str]]) -> gpd.GeoDataFrame`
+
+Fetches census tracts for counties across multiple states
+
+- **Args**: List of (state_fips, county_fips) tuples
+- **Returns**: GeoDataFrame with tract polygons concatenated from all states
+- **Note**: Supports multi-state metros like Memphis (TN-MS-AR)
 
 ### `acs.py` - Census ACS Data
 
@@ -548,18 +574,37 @@ DASHBOARD_DEBUG=True
 
 ### Metro Area Setup
 
-To add a new metro area, edit `src/pipelines/config.py`:
+To add a new metro area, edit `src/pipelines/config.py`. The pipeline supports multi-state metropolitan areas by specifying counties as `(state_fips, county_fips)` tuples:
 
 ```python
 METRO_CONFIGS = {
     "new_metro": {
         "name": "Full Metro Name",
         "cbsa_code": "12345",           # From Census CBSA definitions
-        "state_fips": "12",             # Primary state
-        "county_fips_list": ["001"],    # Counties in metro
+        "counties": [
+            ("12", "001"),              # County in primary state
+            ("13", "002")               # County in adjacent state (if applicable)
+        ],
         "zip_prefixes": ["12", "13"],   # ZIP prefixes for ZCTAs
         "utm_zone": 32617               # EPSG code for UTM projection
     }
+}
+```
+
+**Multi-State Metro Example** (Memphis, TN-MS-AR):
+
+```python
+"memphis": {
+    "name": "Memphis, TN-MS-AR",
+    "cbsa_code": "32820",
+    "counties": [
+        ("47", "157"),  # Shelby County, TN
+        ("47", "047"),  # Fayette County, TN
+        ("05", "035"),  # Crittenden County, AR
+        ("28", "033")   # DeSoto County, MS
+    ],
+    "zip_prefixes": ["37", "38"],
+    "utm_zone": 32616
 }
 ```
 

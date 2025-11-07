@@ -221,3 +221,50 @@ def get_state_tracts(
         }
         return esri_geojson_to_gdf(TIGER_TRACTS_URL, params)
 
+
+def get_tracts_for_counties(
+    counties: list[tuple[str, str]]
+) -> gpd.GeoDataFrame:
+    """Fetch census tracts for multiple state-county pairs.
+    
+    This function supports multi-state metro areas by fetching tracts for
+    counties across different states and combining them into a single GeoDataFrame.
+    
+    Args:
+        counties: List of (state_fips, county_fips) tuples
+                 e.g., [("47", "157"), ("05", "035"), ("28", "033")]
+                 
+    Returns:
+        GeoDataFrame with all tracts from specified counties, with columns:
+        GEOID (11-digit), STATE, COUNTY, NAME, geometry
+        
+    Raises:
+        requests.HTTPError: If any TIGER API request fails
+        
+    Example:
+        >>> memphis_counties = [("47", "157"), ("05", "035"), ("28", "033")]
+        >>> tracts = get_tracts_for_counties(memphis_counties)
+        >>> print(f"Fetched {len(tracts)} tracts across {len(memphis_counties)} counties")
+    """
+    tract_gdfs = []
+    
+    for state_fips, county_fips in counties:
+        params = {
+            "where": f"STATE='{state_fips}' AND COUNTY='{county_fips}'",
+            "outFields": "GEOID,STATE,COUNTY,NAME",
+            "returnGeometry": "true",
+            "f": "geojson"
+        }
+        gdf = esri_geojson_to_gdf(TIGER_TRACTS_URL, params)
+        if not gdf.empty:
+            tract_gdfs.append(gdf)
+            print(f"  Fetched {len(gdf)} tracts for state {state_fips}, county {county_fips}")
+    
+    if tract_gdfs:
+        return pd.concat(tract_gdfs, ignore_index=True)
+    else:
+        return gpd.GeoDataFrame(
+            columns=["GEOID", "STATE", "COUNTY", "NAME", "geometry"],
+            geometry="geometry",
+            crs="EPSG:4326"
+        )

@@ -14,8 +14,7 @@ CENSUS_API_KEY = os.getenv("CENSUS_API_KEY", None)
 # Format: "metro_key": {
 #   "name": Full metro name,
 #   "cbsa_code": CBSA code from Census,
-#   "state_fips": Primary state FIPS code,
-#   "county_fips_list": List of county FIPS codes in the metro,
+#   "counties": List of (state_fips, county_fips) tuples for all counties in metro,
 #   "zip_prefixes": ZIP code prefixes for ZCTA queries,
 #   "utm_zone": UTM zone EPSG code for accurate spatial calculations
 # }
@@ -23,32 +22,43 @@ METRO_CONFIGS = {
     "phoenix": {
         "name": "Phoenix-Mesa-Chandler, AZ",
         "cbsa_code": "38060",
-        "state_fips": "04",  # Arizona
-        "county_fips_list": ["013", "021"],  # Maricopa, Pinal
+        "counties": [
+            ("04", "013"),  # AZ - Maricopa
+            ("04", "021"),  # AZ - Pinal
+        ],
         "zip_prefixes": ["85"],
         "utm_zone": 32612  # UTM Zone 12N
     },
     "memphis": {
         "name": "Memphis, TN-MS-AR",
         "cbsa_code": "32820",
-        "state_fips": "47",  # Tennessee (primary)
-        "county_fips_list": ["157", "047", "033"],  # Shelby TN, Fayette TN, Crittenden AR (28)
-        "zip_prefixes": ["38", "72"],  # TN and AR prefixes
+        "counties": [
+            ("47", "157"),  # TN - Shelby
+            ("47", "047"),  # TN - Fayette
+            ("05", "035"),  # AR - Crittenden
+            ("28", "033"),  # MS - DeSoto
+        ],
+        "zip_prefixes": ["38", "72", "386"],  # TN, AR, MS prefixes
         "utm_zone": 32616  # UTM Zone 16N
     },
     "los_angeles": {
         "name": "Los Angeles-Long Beach-Anaheim, CA",
         "cbsa_code": "31080",
-        "state_fips": "06",  # California
-        "county_fips_list": ["037"],  # Los Angeles County
+        "counties": [
+            ("06", "037"),  # CA - Los Angeles
+        ],
         "zip_prefixes": ["90", "91"],  # Primary LA area prefixes
         "utm_zone": 32611  # UTM Zone 11N
     },
     "dallas": {
         "name": "Dallas-Fort Worth-Arlington, TX",
         "cbsa_code": "19100",
-        "state_fips": "48",  # Texas
-        "county_fips_list": ["113", "121", "257", "439"],  # Dallas, Denton, Collin, Tarrant
+        "counties": [
+            ("48", "113"),  # TX - Dallas
+            ("48", "121"),  # TX - Denton
+            ("48", "257"),  # TX - Collin
+            ("48", "439"),  # TX - Tarrant
+        ],
         "zip_prefixes": ["75", "76"],  # Dallas and Fort Worth areas
         "utm_zone": 32614  # UTM Zone 14N
     }
@@ -60,11 +70,15 @@ SELECTED_METRO = os.getenv("METRO", "phoenix")  # Can be: phoenix, memphis, los_
 # Get the selected metro configuration
 _metro_config = METRO_CONFIGS.get(SELECTED_METRO, METRO_CONFIGS["phoenix"])
 CBSA_CODE = _metro_config["cbsa_code"]
-STATE_FIPS = _metro_config["state_fips"]
-COUNTY_FIPS_LIST = _metro_config["county_fips_list"]
+COUNTIES = _metro_config["counties"]  # List of (state_fips, county_fips) tuples
 ZIP_PREFIXES = _metro_config["zip_prefixes"]
 UTM_ZONE = _metro_config["utm_zone"]
 METRO_NAME = _metro_config["name"]
+
+# Backward compatibility: extract unique states and primary state
+STATES = sorted(set(state for state, _ in COUNTIES))
+STATE_FIPS = STATES[0]  # Primary state (first alphabetically)
+COUNTY_FIPS_LIST = [county for _, county in COUNTIES if _ == STATE_FIPS]  # Primary state counties only
 
 # Zillow Research CSV URL for ZORI by ZIP (official data file; no public API)
 # Update if Zillow changes paths.
