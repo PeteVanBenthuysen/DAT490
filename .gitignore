@@ -69,6 +69,10 @@ htmlcov/
 # MLflow
 mlruns/
 
+# Cache directories
+cache/
+.cache/
+
 # Misc
 *.bak
 *.tmp
