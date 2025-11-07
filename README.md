@@ -2,7 +2,7 @@
 
 **DAT490 Capstone Project**
 
-## 🎯 Project Overview
+## Project Overview
 
 Analyzing how commute distance and transit access influence housing affordability using data engineering and machine learning.
 
@@ -20,7 +20,7 @@ Quantify the relationship between housing costs, commute time, and public transi
 - **Clustering**: K-Means for affordability zone identification
 - **Visualization**: Interactive dashboard for insights
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 DAT490/
@@ -42,7 +42,7 @@ DAT490/
 └── README.md
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.9+
@@ -69,7 +69,7 @@ cp .env.example .env
 # Edit .env with your API keys
 ```
 
-## 📊 Usage
+## Usage
 
 ```bash
 # Run data pipeline
@@ -91,18 +91,18 @@ cd docker
 docker-compose up --build
 ```
 
-## 📈 Deliverables
+## Deliverables
 
-- ✅ City-level affordability map
-- ✅ Interactive dashboard
-- ✅ Policy recommendations
-- ✅ Equity-focused analysis
-- ✅ Production-ready data pipeline
+- City-level affordability map
+- Interactive dashboard
+- Policy recommendations
+- Equity-focused analysis
+- Production-ready data pipeline
 
-## 🤝 Team
+## Team
 
 DAT490 Capstone Project
 
-## 📝 License
+## License
 
 MIT License
