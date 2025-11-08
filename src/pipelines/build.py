@@ -182,6 +182,40 @@ def build_final_dataset() -> str:
     final_dataset = create_income_segments(final_dataset)
     print(f"Created income segments (Low/Medium/High) based on quartiles")
 
+    # Step 9: Reorder columns for consistent output
+    column_order = [
+        'ZCTA5CE',
+        'rent_to_income',
+        'pct_rent_burden_30',
+        'pct_rent_burden_50',
+        'zori',
+        'commute_min_proxy',
+        'pct_commute_lt10',
+        'pct_commute_10_19',
+        'pct_commute_20_29',
+        'pct_commute_30_44',
+        'pct_commute_45_59',
+        'pct_commute_60_plus',
+        'ttw_total',
+        'pct_drive_alone',
+        'pct_carpool',
+        'pct_car',
+        'pct_transit',
+        'pct_walk',
+        'pct_wfh',
+        'total_pop',
+        'pct_white',
+        'pct_black',
+        'pct_asian',
+        'pct_hispanic',
+        'pct_other',
+        'median_income',
+        'income_segment',
+        'stops_per_km2',
+        'period'
+    ]
+    final_dataset = final_dataset[column_order]
+    
     # Write output CSV file
     FINAL_ZCTA_OUT.parent.mkdir(parents=True, exist_ok=True)
     final_dataset.to_csv(FINAL_ZCTA_OUT, index=False)

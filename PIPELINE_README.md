@@ -342,7 +342,8 @@ METRO_CONFIGS = {
 10. Compute transit density
 11. Merge all data sources
 12. Create income segments
-13. Write output CSV
+13. Reorder columns for consistent output
+14. Write output CSV
 
 **Multi-State Support**: The pipeline automatically handles metros spanning multiple states by iterating over the `COUNTIES` list of `(state_fips, county_fips)` tuples. Each state-county combination is queried separately from the Census API and then concatenated.
 
@@ -624,37 +625,39 @@ data/final/final_zcta_dataset_{metro}.csv
 
 ### Columns
 
+Columns are ordered logically: identifiers, affordability metrics, commute patterns, transportation modes, demographics, and transit access.
+
 | Column | Type | Description | Source |
 |--------|------|-------------|--------|
 | `ZCTA5CE` | string | 5-digit ZIP Code Tabulation Area | TIGER/Line |
 | `rent_to_income` | float | Median rent / median income × 100 | ACS (derived) |
+| `pct_rent_burden_30` | float | % rent burdened (30%+ of income) | ACS B25070 |
+| `pct_rent_burden_50` | float | % severely burdened (50%+ of income) | ACS B25070 |
+| `zori` | float | Zillow Observed Rent Index ($) | Zillow |
 | `commute_min_proxy` | float | Weighted avg commute time (minutes) | ACS (derived) |
-| `ttw_total` | int | Total workers commuting | ACS B08303 |
 | `pct_commute_lt10` | float | % commute < 10 minutes | ACS (derived) |
 | `pct_commute_10_19` | float | % commute 10-19 minutes | ACS (derived) |
 | `pct_commute_20_29` | float | % commute 20-29 minutes | ACS (derived) |
 | `pct_commute_30_44` | float | % commute 30-44 minutes | ACS (derived) |
 | `pct_commute_45_59` | float | % commute 45-59 minutes | ACS (derived) |
 | `pct_commute_60_plus` | float | % commute 60+ minutes | ACS (derived) |
+| `ttw_total` | int | Total workers commuting | ACS B08303 |
 | `pct_drive_alone` | float | % drive alone to work | ACS B08301 |
 | `pct_carpool` | float | % carpool to work | ACS B08301 |
+| `pct_car` | float | % use car (alone + carpool) | ACS (derived) |
 | `pct_transit` | float | % use public transit | ACS B08301 |
 | `pct_walk` | float | % walk to work | ACS B08301 |
 | `pct_wfh` | float | % work from home | ACS B08301 |
-| `pct_car` | float | % use car (alone + carpool) | ACS (derived) |
-| `pct_rent_burden_30` | float | % rent burdened (30%+ of income) | ACS B25070 |
-| `pct_rent_burden_50` | float | % severely burdened (50%+ of income) | ACS B25070 |
 | `total_pop` | int | Total population | ACS B01001 |
-| `pct_hispanic` | float | % Hispanic or Latino | ACS B03002 |
 | `pct_white` | float | % Non-Hispanic White | ACS B03002 |
 | `pct_black` | float | % Non-Hispanic Black | ACS B03002 |
 | `pct_asian` | float | % Non-Hispanic Asian | ACS B03002 |
+| `pct_hispanic` | float | % Hispanic or Latino | ACS B03002 |
 | `pct_other` | float | % Other races | ACS B03002 |
 | `median_income` | float | Median household income ($) | ACS B19013 |
 | `income_segment` | string | Income quartile (Low/Medium/High) | Derived |
-| `period` | string | ZORI data month (YYYY-MM-DD) | Zillow |
-| `zori` | float | Zillow Observed Rent Index ($) | Zillow |
 | `stops_per_km2` | float | Transit stops per square kilometer | OSM (derived) |
+| `period` | string | ZORI data month (YYYY-MM-DD) | Zillow |
 
 ### Missing Value Handling
 
