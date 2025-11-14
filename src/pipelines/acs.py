@@ -51,6 +51,15 @@ ACS_VARS = {
     "rent_burden_35_39": "B25070_009E",  # 35.0 to 39.9 percent
     "rent_burden_40_49": "B25070_010E",  # 40.0 to 49.9 percent
     "rent_burden_50_plus": "B25070_011E",  # 50.0 percent or more
+    # Tenure (B25003 - Tenure)
+    "tenure_total": "B25003_001E",  # Total occupied housing units
+    "tenure_owner": "B25003_002E",  # Owner occupied
+    "tenure_renter": "B25003_003E",  # Renter occupied
+    # Vehicle availability (B08201 - Household Size by Vehicles Available)
+    "vehicles_total": "B08201_001E",  # Total households (universe for vehicle calculation)
+    "vehicles_none": "B08201_002E",  # No vehicle available
+    "vehicles_1": "B08201_003E",  # 1 vehicle available
+    "vehicles_2_plus": "B08201_007E",  # 2 or more vehicles available (sum of B08201_007-013)
 }
 
 
@@ -127,7 +136,8 @@ def fetch_acs_for_county(
         acs_data["state"] + acs_data["county"] + acs_data["tract"]
     ).astype(str)
     
-    # Convert numeric columns, handling Census null codes (negative values)
+    # Convert numeric columns, handling Census null codes (negative values like -666666666)
+    # errors="coerce" converts invalid/null values to NaN for downstream handling
     numeric_cols = ["median_rent", "median_income", "ttw_total", 
                     "ttw_lt5", "ttw_5_9", "ttw_10_14", "ttw_15_19", "ttw_20_24",
                     "ttw_25_29", "ttw_30_34", "ttw_35_39", "ttw_40_44",
@@ -135,7 +145,9 @@ def fetch_acs_for_county(
                     "mode_total", "mode_car_alone", "mode_carpool", "mode_transit",
                     "mode_walk", "mode_other", "mode_wfh",
                     "rent_burden_total", "rent_burden_30_34", "rent_burden_35_39",
-                    "rent_burden_40_49", "rent_burden_50_plus"]
+                    "rent_burden_40_49", "rent_burden_50_plus",
+                    "tenure_total", "tenure_owner", "tenure_renter",
+                    "vehicles_total", "vehicles_none", "vehicles_1", "vehicles_2_plus"]
     for col in numeric_cols:
         acs_data[col] = pd.to_numeric(acs_data[col], errors="coerce")
     
@@ -170,6 +182,9 @@ def compute_acs_features(acs_df: pd.DataFrame) -> pd.DataFrame:
         - pct_car: Percentage using car (alone + carpool)
         - pct_rent_burden_30: Percentage of renters paying 30%+ of income on rent
         - pct_rent_burden_50: Percentage of renters paying 50%+ of income on rent
+        - renter_share: Percentage of occupied housing units that are renter-occupied
+        - pct_no_vehicle: Percentage of households with no vehicle available
+        - vehicle_access: Percentage of households with 1+ vehicles available
         - long45_share: [DEPRECATED] Use (pct_commute_45_59 + pct_commute_60_plus) / 100
         - long60_share: [DEPRECATED] Use pct_commute_60_plus / 100
         
@@ -187,7 +202,9 @@ def compute_acs_features(acs_df: pd.DataFrame) -> pd.DataFrame:
                     "mode_total", "mode_car_alone", "mode_carpool", "mode_transit",
                     "mode_walk", "mode_other", "mode_wfh",
                     "rent_burden_total", "rent_burden_30_34", "rent_burden_35_39",
-                    "rent_burden_40_49", "rent_burden_50_plus"]
+                    "rent_burden_40_49", "rent_burden_50_plus",
+                    "tenure_total", "tenure_owner", "tenure_renter",
+                    "vehicles_total", "vehicles_none", "vehicles_1", "vehicles_2_plus"]
     for col in numeric_cols:
         features.loc[features[col] < 0, col] = pd.NA
     
@@ -201,9 +218,10 @@ def compute_acs_features(acs_df: pd.DataFrame) -> pd.DataFrame:
     )
     
     # Avoid division by zero in commute calculations
+    # Replace 0 with NA so divisions propagate NA instead of raising errors or returning inf
     total_workers = features["ttw_total"].replace(0, pd.NA)
     
-    # Share of workers by commute time categories (consistent naming: pct_commute_X)
+    # Share of workers by commute time categories (as percentages 0-100)
     features["pct_commute_lt10"] = (features["ttw_lt5"] + features["ttw_5_9"]) / total_workers * 100
     features["pct_commute_10_19"] = (features["ttw_10_14"] + features["ttw_15_19"]) / total_workers * 100
     features["pct_commute_20_29"] = (features["ttw_20_24"] + features["ttw_25_29"]) / total_workers * 100
@@ -259,5 +277,18 @@ def compute_acs_features(acs_df: pd.DataFrame) -> pd.DataFrame:
     features["pct_rent_burden_50"] = (
         features["rent_burden_50_plus"] / rent_burden_total
     ) * 100
+    
+    # Renter share (percentage of occupied units that are renter-occupied)
+    tenure_total = features["tenure_total"].replace(0, pd.NA)
+    features["renter_share"] = (features["tenure_renter"] / tenure_total) * 100
+    
+    # Vehicle availability (percentage of households with no vehicle)
+    # Higher values indicate lower vehicle access
+    vehicles_total = features["vehicles_total"].replace(0, pd.NA)
+    features["pct_no_vehicle"] = (features["vehicles_none"] / vehicles_total) * 100
+    
+    # Inverse measure: vehicle access (percentage with 1+ vehicles)
+    features["vehicle_access"] = ((features["vehicles_1"] + features["vehicles_2_plus"]) / 
+                                   vehicles_total) * 100
     
     return features

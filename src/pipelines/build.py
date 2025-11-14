@@ -15,6 +15,7 @@ from .config import (
     COUNTIES,
     FINAL_ZCTA_OUT,
     METRO_NAME,
+    UTM_ZONE,
     ZIP_PREFIXES,
     ZORI_ZIP_CSV_URL,
 )
@@ -97,10 +98,12 @@ def build_final_dataset() -> str:
     print(f"Processed demographic data for {len(demo_raw)} tracts")
 
     # Step 4: Map census tracts to ZCTAs using centroid-based spatial join
+    # Centroid method assigns each tract to the ZCTA containing its geographic center,
+    # avoiding many-to-many relationships that occur with boundary overlaps
     print(f"Mapping {len(tracts_in_counties)} tracts to {len(zctas_in_metro)} ZCTAs...")
     tract_to_zcta_map = tract_to_zcta_centroid_map(tracts_in_counties, zctas_in_metro)
 
-    # DEBUG: Check mapping results
+    # DEBUG: Export mapping for validation (check for unmapped tracts or unexpected assignments)
     tract_to_zcta_map.to_csv("data/test/debug_tract_to_zcta_map.csv", index=False)
 
     # Join ACS commute features with tract-to-ZCTA mapping
@@ -128,6 +131,9 @@ def build_final_dataset() -> str:
         # Rent burden
         "pct_rent_burden_30": "mean",  # Average % rent burdened (30%+)
         "pct_rent_burden_50": "mean",  # Average % severely rent burdened (50%+)
+        # Tenure and vehicle access (for RQ1 controls)
+        "renter_share": "mean",  # Average % of units that are renter-occupied
+        "vehicle_access": "mean",  # Average % of households with 1+ vehicles
     })
     print(f"Aggregated commute data to {len(zcta_aggregated)} ZCTAs")
     
@@ -143,9 +149,10 @@ def build_final_dataset() -> str:
     print(f"Fetched ZORI data for {len(zori_data)} ZIP codes")
 
     # Step 6: Compute transit stop density from OpenStreetMap for each ZCTA
-    # Note: transit_filter and fallback_filter parameters currently unused
-    # Create a proper GeoDataFrame with only needed columns
+    # Empty filter strings use default OSM transit tags defined in config.py
+    # (transit_filter and fallback_filter allow custom filtering if needed in future)
     print(f"Computing transit density for {len(zctas_in_metro)} ZCTAs (may take several minutes)...")
+    # Create clean GeoDataFrame with only ZCTA ID and geometry to reduce memory footprint
     zctas_for_transit = gpd.GeoDataFrame(
         zctas_in_metro[["ZCTA5CE"]],
         geometry=zctas_in_metro.geometry,
@@ -153,11 +160,17 @@ def build_final_dataset() -> str:
     )
     transit_density = zcta_transit_density(
         zctas_for_transit,
-        transit_filter="",
-        fallback_filter=""
+        transit_filter="",  # Use default OSM public_transport tags
+        fallback_filter=""  # Use default highway=bus_stop fallback
     )
     print(f"Computed transit density for {len(transit_density)} ZCTAs")
 
+    # Step 6b: Calculate population density (people per square km)
+    print("Computing population density for ZCTAs...")
+    zctas_area = zctas_in_metro.to_crs(UTM_ZONE).copy()
+    zctas_area["area_km2"] = zctas_area.geometry.area / 1_000_000  # Convert m² to km²
+    zcta_area_df = zctas_area[["ZCTA5CE", "area_km2"]].copy()
+    
     # Step 7: Merge all data sources into final dataset
     final_dataset = (
         zcta_aggregated
@@ -176,7 +189,16 @@ def build_final_dataset() -> str:
             on="ZCTA5CE",
             how="left"  # Left join to keep all ZCTAs even without transit data
         )
+        .merge(
+            zcta_area_df,
+            on="ZCTA5CE",
+            how="left"  # Left join to add area for density calculation
+        )
     )
+    
+    # Calculate population density (people per km²)
+    final_dataset["pop_density"] = final_dataset["total_pop"] / final_dataset["area_km2"]
+    final_dataset = final_dataset.drop(columns=["area_km2"])  # Remove intermediate column
     
     # Step 8: Create income segments based on median income quartiles
     final_dataset = create_income_segments(final_dataset)
@@ -203,7 +225,10 @@ def build_final_dataset() -> str:
         'pct_transit',
         'pct_walk',
         'pct_wfh',
+        'renter_share',
+        'vehicle_access',
         'total_pop',
+        'pop_density',
         'pct_white',
         'pct_black',
         'pct_asian',

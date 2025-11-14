@@ -199,10 +199,13 @@ def aggregate_demographics_to_zcta(
     demo_with_zcta = demographics_df.merge(tract_to_zcta_map, on="GEOID", how="inner")
     
     # For each ZCTA, calculate population-weighted averages
+    # Population weighting ensures larger tracts contribute proportionally to ZCTA metrics,
+    # avoiding bias from small-population tracts with extreme values
     def weighted_mean(group: pd.DataFrame, value_col: str) -> float:
-        """Calculate population-weighted mean for a column."""
+        """Calculate population-weighted mean: sum(value_i * pop_i) / sum(pop_i)."""
         weights = group["total_pop"]
         values = group[value_col]
+        # Return 0 if total population is 0 to avoid division by zero
         return (values * weights).sum() / weights.sum() if weights.sum() > 0 else 0
     
     # Group by ZCTA and aggregate

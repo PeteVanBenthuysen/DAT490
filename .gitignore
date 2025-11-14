@@ -51,6 +51,9 @@ data/test/*
 !data/processed/.gitkeep
 !data/models/.gitkeep
 
+# Figures
+figures/
+
 # Logs
 *.log
 logs/

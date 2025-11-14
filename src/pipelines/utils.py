@@ -12,22 +12,40 @@ import requests
 from shapely.geometry import shape
 
 
-def http_csv_to_df(url: str) -> pd.DataFrame:
+def http_csv_to_df(url: str, timeout: int = 180) -> pd.DataFrame:
     """Fetch a CSV file from a URL and return as a DataFrame.
     
     Args:
         url: Full URL to the CSV file
+        timeout: Request timeout in seconds (default 180 for large files)
         
     Returns:
         DataFrame containing the parsed CSV data
         
     Raises:
-        requests.HTTPError: If the HTTP request fails
+        requests.HTTPError: If the HTTP request fails (4xx/5xx status)
+        requests.Timeout: If request exceeds timeout duration
+        requests.ConnectionError: If network connection fails
         pandas.errors.ParserError: If CSV parsing fails
+        
+    Notes
+    -----
+    Uses BytesIO buffer to avoid writing temporary files to disk.
+    Timeout of 180s accommodates large Census/Zillow data files.
     """
-    response = requests.get(url, timeout=180)
-    response.raise_for_status()
-    return pd.read_csv(io.BytesIO(response.content))
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        return pd.read_csv(io.BytesIO(response.content))
+    except requests.Timeout as e:
+        raise requests.Timeout(
+            f"Request timed out after {timeout}s for URL: {url}. "
+            "Try increasing timeout or check network connection."
+        ) from e
+    except requests.ConnectionError as e:
+        raise requests.ConnectionError(
+            f"Failed to connect to {url}. Check network connection and URL."
+        ) from e
 
 
 def http_json_to_dict(url: str, params: dict | None = None) -> dict | list:
