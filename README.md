@@ -84,7 +84,7 @@ python -m src.models.clustering
 python -m src.dashboard.app
 ```
 
-## 🐳 Docker Deployment
+##  Docker Deployment
 
 ```bash
 cd docker
